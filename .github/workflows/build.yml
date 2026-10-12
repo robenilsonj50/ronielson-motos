@@ -16,8 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Extrair projeto Android
-        run: unzip -o RonielsonMotos_Projeto_Android.zip -d .
-
+        run: unzip -o RonielsonMotos_Projeto_Android_Moderno.zip -d .
       - name: Configurar Java
         uses: actions/setup-java@v4
         with:
