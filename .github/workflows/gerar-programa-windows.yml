@@ -1,1 +1,61 @@
+name: Gerar programa do Windows (PC)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'RonielsonMotos_PC_Programa.zip'
+      - '.github/workflows/gerar-programa-windows.yml'
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar o Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Extrair o projeto do programa
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter 'RonielsonMotos_PC_Programa.zip' | Select-Object -First 1
+          if (-not $zip) { throw 'Nao encontrei o arquivo RonielsonMotos_PC_Programa.zip no repositorio.' }
+          $dest = Join-Path $env:RUNNER_TEMP 'pc'
+          Expand-Archive -Path $zip.FullName -DestinationPath $dest -Force
+          $pkg = Get-ChildItem -Path $dest -Recurse -Filter 'package.json' | Where-Object { $_.FullName -notmatch 'node_modules' } | Select-Object -First 1
+          if (-not $pkg) { throw 'package.json nao encontrado dentro do zip.' }
+          "PROJ=$($pkg.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Projeto em: $($pkg.DirectoryName)"
+
+      - name: Instalar dependências
+        shell: pwsh
+        run: |
+          Set-Location $env:PROJ
+          npm install --no-audit --no-fund
+
+      - name: Gerar instalador e versão portátil
+        shell: pwsh
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          Set-Location $env:PROJ
+          npm run dist
+
+      - name: Reunir os arquivos
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE/saida" | Out-Null
+          Copy-Item "$env:PROJ/dist/*.exe" "$env:GITHUB_WORKSPACE/saida/"
+          Get-ChildItem "$env:GITHUB_WORKSPACE/saida" | Select-Object Name, Length
+
+      - name: Disponibilizar o programa
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ronielson-Motos-PC-Windows
+          path: saida/*.exe
+          if-no-files-found: error
 
